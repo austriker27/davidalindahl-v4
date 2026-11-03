@@ -54,7 +54,7 @@ jobs:
           fi
 
   deploy:
-    name: ${{ github.ref_name == 'main' && 'Production' || 'Preview' }}
+    name: Deploy
     needs: credentials
     if: github.event_name != 'delete' && needs.credentials.outputs.ok == 'true'
     runs-on: ubuntu-latest
