@@ -35,26 +35,22 @@ applies the production security headers from `public/_headers`.
 npm test
 ```
 
-## Deploy to Cloudflare
+## Deploy
 
-`wrangler.jsonc` configures a static-assets-only Worker that serves `dist/`, with
-`404.html` for unknown paths.
+Continuous deployment to Cloudflare Workers runs from GitHub Actions
+(`.github/workflows/deploy.yml`):
 
-**From your machine:**
+- **Push to `main`:** production deploy.
+- **Push to any other branch:** a Worker Preview with its own URL, linked from the run and
+  the PR.
+- **Branch deleted:** its preview is deleted.
+
+One-time setup (Cloudflare API token, account ID and GitHub settings) is in
+[`docs/deployment.md`](./docs/deployment.md). To deploy by hand:
 
 ```bash
 npm run deploy
 ```
-
-This runs `npx wrangler deploy`, which asks you to log in to Cloudflare the first time.
-
-**From Git (Workers Builds):** connect the repo in the Cloudflare dashboard and set:
-
-- Build command: `npm run build`
-- Deploy command: `npx wrangler deploy`
-
-Cloudflare Pages also works: build command `npm run build`, output directory `dist`.
-`public/_headers` (CSP, HSTS, immutable caching for `/assets/*`) is honoured by both.
 
 ## Fonts
 

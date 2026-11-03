@@ -28,6 +28,8 @@ If a change seems to need one of these, stop and ask the owner.
 | ASCII computer model / shading / lens   | `src/client/ascii-renderer.js`                |
 | ASCII computer events, worker fallback  | `src/client/ascii-computer.js`                |
 | Security & cache headers                | `public/_headers`                             |
+| Cloudflare Worker config                | `wrangler.jsonc`                              |
+| CI / CD workflows                       | `.github/workflows/` (see `docs/deployment.md`) |
 | Build pipeline                          | `scripts/build.mjs`                           |
 
 ```
@@ -91,6 +93,11 @@ npm run build    # validate + render into dist/
 npm run check    # validate content only
 npm run deploy   # build + wrangler deploy (needs Cloudflare login)
 ```
+
+Deploys normally happen in CI: push to `main` → production; push to another branch → a
+Preview URL; delete the branch → the preview is removed. Keep `"previews": {}` in
+`wrangler.jsonc` (`wrangler preview` requires it), and bump `WRANGLER_VERSION` in
+`deploy.yml` together with the `deploy` script in `package.json`.
 
 ## Verifying a change
 

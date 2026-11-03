@@ -1,10 +1,20 @@
 // Cloudflare Workers, static assets only (no Worker script).
-// https://developers.cloudflare.com/workers/static-assets/
+// Deployed by .github/workflows/deploy.yml (see docs/deployment.md):
+//   push to main         → `wrangler deploy` (production)
+//   push to other branch → `wrangler preview --name <branch>` (a Preview with its own URL)
+//   branch deleted       → `wrangler preview delete --name <branch>`
+// The Cloudflare account ID and API token come from GitHub secrets, never from this file.
 {
   "name": "davidalindahl",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page"
-  }
+  },
+  // Serve production at davidalindahl.<your-subdomain>.workers.dev until a custom domain
+  // is attached (see docs/deployment.md).
+  "workers_dev": true,
+  // Required by `wrangler preview`. Empty is fine: a static site has no bindings that
+  // need Preview-safe values.
+  "previews": {}
 }

@@ -12,6 +12,6 @@
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
     "test": "node --test",
-    "deploy": "npm run build && npx wrangler deploy"
+    "deploy": "npm run build && npx --yes wrangler@4.157.0 deploy"
   }
 }
