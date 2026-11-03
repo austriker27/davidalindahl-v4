@@ -1,0 +1,16 @@
+{
+  "name": "davidalindahl",
+  "version": "4.0.0",
+  "private": true,
+  "description": "Personal site of David A. Lindahl. Single static page built from JSON content.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "dev": "node scripts/dev.mjs",
+    "deploy": "npm run build && npx wrangler deploy"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "./schema/site.schema.json",
+  "name": "David A. Lindahl",
+  "url": "https://davidalindahl.com",
+  "title": "David A. Lindahl",
+  "description": "Front end / UI developer, designer, e-commerce operator, and founder of Rainier Watch. Based in the rainy PNW.",
+  "tagline": "Front End/UI Developer | Designer | E-commerce Operator | Entrepreneur | Outdoor Adventurer | Photographer",
+  "hero": {
+    "screenMessages": ["HELLO", "HOWDY", "PNW"],
+    "hint": "move your mouse over the machine // click to change the screen"
+  },
+  "intro": [
+    "Howdy! My name is David. I'm a front end / UI developer and designer, and I run [Rainier Watch](https://rainierwatch.com), the e-commerce side of a Twitter account I started in 2013 to report when The Mountain was out.",
+    "I've built 20+ websites for clients and worked on revenue-generating products at agencies, for brands like Sony, the Ad Council, Laravel News, Microsoft, and SAP Concur. I love crafting intuitive digital things and user experiences that surprise and delight.",
+    "Being a child of the 80s, I'm embarrassingly obsessed with throwback design, which is how you ended up looking at a computer made of text."
+  ],
+  "links": [
+    { "label": "GitHub", "url": "https://github.com/austriker27" },
+    { "label": "LinkedIn", "url": "https://www.linkedin.com/in/davidalindahl/" },
+    { "label": "Dribbble", "url": "https://dribbble.com/austriker" },
+    { "label": "Instagram", "url": "https://instagram.com/austriker27" },
+    { "label": "Photography", "url": "https://davidlindahlphoto.com/" }
+  ],
+  "footer": "built with care in the rainy PNW"
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Site content",
+  "description": "Global copy for the single-page site. Intro paragraphs support inline markdown links only: [text](https://...).",
+  "type": "object",
+  "required": ["name", "url", "title", "description", "tagline", "hero", "intro", "links"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "pattern": "^https://" },
+    "title": { "type": "string", "minLength": 1, "description": "Browser tab / social share title." },
+    "description": { "type": "string", "minLength": 1, "maxLength": 200, "description": "Meta description." },
+    "tagline": { "type": "string", "minLength": 1 },
+    "hero": {
+      "type": "object",
+      "required": ["screenMessages"],
+      "additionalProperties": false,
+      "properties": {
+        "screenMessages": {
+          "type": "array",
+          "description": "Words shown on the ASCII computer's screen; click cycles through them. Keep each to 6 characters or fewer.",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 6 }
+        },
+        "hint": { "type": "string" }
+      }
+    },
+    "intro": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "url": { "type": "string", "pattern": "^(https://|mailto:)" }
+        }
+      }
+    },
+    "footer": { "type": "string" }
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env*
+.DS_Store
+# Licensed font files are never committed (see public/fonts/README.md)
+public/fonts/*.woff
+public/fonts/*.woff2
+public/fonts/*.otf
+public/fonts/*.ttf
