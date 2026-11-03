@@ -1,6 +1,0 @@
-/* Page container: centres content and applies the gutter. */
-.page {
-  max-width: var(--layout-max);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-}

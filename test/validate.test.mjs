@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { validate } from '../scripts/validate.mjs';
+import { validate } from '../src/lib/validate.mjs';
 
 const schema = JSON.parse(await readFile(new URL('../content/schema/experience.schema.json', import.meta.url)));
 const job = { company: 'Co', role: 'Dev', start: '2020-01', end: null };

@@ -6,8 +6,8 @@ The site deploys to **Cloudflare Workers** as a static-assets-only Worker named
 
 | Event | What happens | URL |
 | --- | --- | --- |
-| Push to `main` | Tests, build, `wrangler deploy` | Production: `davidalindahl.<subdomain>.workers.dev` (or your custom domain) |
-| Push to any other branch | Tests, build, `wrangler preview --name <branch>` | A Preview URL, shown on the run, in the PR's deployments, and in the job summary |
+| Push to `main` | `npm ci`, tests (which build the site), `wrangler deploy` | Production: `davidalindahl.<subdomain>.workers.dev` (or your custom domain) |
+| Push to any other branch | `npm ci`, tests, `wrangler preview --name <branch>` | A Preview URL, shown on the run, in the PR's deployments, and in the job summary |
 | Branch deleted (e.g. after merging a PR) | `wrangler preview delete --name <branch>` | n/a |
 
 Preview names are the branch name in lowercase with anything other than `a–z` and `0–9`
@@ -89,22 +89,25 @@ you're happy with production on `workers.dev`.
 npm run deploy
 ```
 
-This builds and runs `wrangler deploy` with the same pinned Wrangler version as CI. It
-needs `npx wrangler login` first, or `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in
-your shell. Licensed MD Thermochrome fonts in `src/fonts/licensed/` are only included in
+This builds with Astro and runs `wrangler deploy` using the Wrangler version pinned in
+`package.json` (the same one CI uses). It needs `npx wrangler login` first, or
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in your shell.
+
+To check a production build locally with Cloudflare's headers and the CSP applied, run
+`npm run preview` (`astro build && wrangler dev`). No Cloudflare account is needed. Licensed MD Thermochrome fonts in `src/fonts/licensed/` are only included in
 deploys made from a machine that has them (they're not in git, so CI never sees them).
 
 ## Things to know
 
 - **Worker Previews are an open-beta Wrangler feature** (`wrangler preview`, Wrangler
-  4.136.3 or newer; CI pins 4.157.0). `wrangler.jsonc` must keep its `"previews": {}`
+  4.136.3 or newer; `package.json` pins 4.157.0). `wrangler.jsonc` must keep its `"previews": {}`
   block, or `wrangler preview` refuses to run in CI.
 - **Preview URLs are public**: anyone with the link can open them. Don't push anything to a
   branch that you wouldn't want seen.
 - **Deleted previews may keep serving for a while.** Open Wrangler issues report deleted
   previews' URLs still responding (cloudflare/workers-sdk#15945, #16170, #16495). If one
   lingers, delete it in the dashboard.
-- **Upgrading Wrangler:** change `WRANGLER_VERSION` in `deploy.yml` and the version in
-  the `deploy` script in `package.json` together.
+- **Upgrading Wrangler:** `npm i -D --save-exact wrangler@<version>`. CI and local
+  deploys both use the version in `package.json`.
 - **Rollback:** Cloudflare keeps previous versions. Use **Workers & Pages → davidalindahl →
   Deployments** in the dashboard, or `npx wrangler rollback`.

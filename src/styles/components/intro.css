@@ -1,9 +1,0 @@
-.intro__tagline {
-  max-width: 72ch;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-.intro__body {
-  margin-top: var(--space-6);
-}

@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageSection from '../components/ui/PageSection.vue';
+import RetroWindow from '../components/ui/RetroWindow.vue';
+import AppLink from '../components/ui/AppLink.vue';
+
+const art = String.raw`
+  .-------------------.
+  |  .-------------.  |
+  |  |  ERROR 404  |  |
+  |  |  NOT FOUND_ |  |
+  |  '-------------'  |
+  |          ====     |
+  '-------------------'`;
+---
+
+<BaseLayout title="Page not found" description="This page does not exist." indexable={false}>
+  <PageSection id="not-found" title="Page not found" level={1}>
+    <RetroWindow title="404.txt">
+      <pre class="overflow-x-auto p-6 font-mono text-xs leading-tight" aria-hidden="true">{art}</pre>
+    </RetroWindow>
+    <p class="mt-6"><AppLink href="/" invert>&lt; Back to the homepage</AppLink></p>
+  </PageSection>
+</BaseLayout>

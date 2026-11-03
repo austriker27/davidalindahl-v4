@@ -18,9 +18,10 @@ To use it:
 1. Buy a web license from the foundry and check what it permits for self-hosting.
 2. Put the `.woff2` files in `licensed/` with "thermochrome" in the name, for example
    `MDThermochrome-Regular.woff2`, `MDThermochrome-Medium.woff2`, `MDThermochrome-Bold.woff2`.
-3. Run `npm run build`. The build picks them up, hashes them into `dist/assets/fonts/` and
-   adds `@font-face` rules. Weight comes from the filename: Semibold 600, Bold 700,
-   Medium 500, everything else 400.
+3. Run `npm run build` (or `npm run dev`). `astro.config.mjs` writes
+   `licensed/fonts.generated.css` with `@font-face` rules for them, `global.css` imports it,
+   and Vite hashes the files into `dist/_astro/`. Weight comes from the filename:
+   Semibold 600, Bold 700, Medium 500, everything else 400.
 
 Because the files aren't in git, a Cloudflare build that runs from the repository won't
 have them. Deploy from a machine that has them (`npm run deploy`), or fetch them from

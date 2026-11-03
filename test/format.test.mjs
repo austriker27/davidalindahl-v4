@@ -1,16 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { render } from '../src/lib/html.mjs';
-import { inlineMarkdown, formatRange, sortExperience } from '../src/lib/format.mjs';
+import { parseInlineLinks, formatRange, sortExperience } from '../src/lib/format.mjs';
 
-test('inlineMarkdown renders https and mailto links and escapes text', () => {
-  const out = render(inlineMarkdown('a < b [x](https://e.com/?q=1&r=2) [m](mailto:a@b.c)'));
-  assert.equal(out, 'a &lt; b <a href="https://e.com/?q=1&amp;r=2">x</a> <a href="mailto:a@b.c">m</a>');
+test('parseInlineLinks splits text and https/mailto links', () => {
+  assert.deepEqual(parseInlineLinks('a [x](https://e.com/?q=1&r=2) and [m](mailto:a@b.c).'), [
+    { text: 'a ' },
+    { text: 'x', href: 'https://e.com/?q=1&r=2' },
+    { text: ' and ' },
+    { text: 'm', href: 'mailto:a@b.c' },
+    { text: '.' },
+  ]);
 });
 
-test('inlineMarkdown leaves unsafe schemes as text', () => {
-  const out = render(inlineMarkdown('[x](javascript:alert(1))'));
-  assert.ok(!out.includes('<a'), out);
+test('parseInlineLinks leaves unsafe schemes as plain text', () => {
+  for (const text of ['[x](javascript:alert(1))', '[x](http://insecure.example)', '[x](data:text/html,hi)']) {
+    assert.ok(parseInlineLinks(text).every((s) => !s.href), text);
+  }
 });
 
 test('formatRange', () => {

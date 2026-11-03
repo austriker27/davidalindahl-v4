@@ -10,6 +10,7 @@
 # Until both exist, the deploy jobs are skipped with a warning instead of failing.
 #
 # Third-party actions are pinned to commit SHAs because these jobs handle the API token.
+# Wrangler comes from package.json (devDependency), so CI and local deploys match.
 
 name: Deploy
 
@@ -28,9 +29,6 @@ permissions:
 concurrency:
   group: deploy-${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
   cancel-in-progress: ${{ github.event_name == 'push' && github.ref_name != 'main' }}
-
-env:
-  WRANGLER_VERSION: '4.157.0'
 
 jobs:
   # Deploy jobs only run once both secrets exist, so an unconfigured repo shows a warning
@@ -68,12 +66,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
+          cache: npm
 
-      - name: Test
+      - run: npm ci
+
+      - name: Test (builds the site, then checks dist/)
         run: npm test
-
-      - name: Build
-        run: npm run build
 
       - name: Deploy to production
         id: production
@@ -82,7 +80,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: ${{ env.WRANGLER_VERSION }}
           command: deploy
 
       # Preview names become part of a hostname: lowercase letters, digits and dashes.
@@ -100,7 +97,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: ${{ env.WRANGLER_VERSION }}
           command: preview --name ${{ steps.name.outputs.name }}
 
       - name: Summary
@@ -125,6 +121,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
 
       - name: Delete the branch's preview
         env:
@@ -134,7 +133,7 @@ jobs:
         run: |
           NAME="$(.github/scripts/preview-name.sh "$BRANCH")"
           set +e
-          OUTPUT="$(npx --yes "wrangler@${WRANGLER_VERSION}" preview delete --name "$NAME" --skip-confirmation 2>&1)"
+          OUTPUT="$(npx wrangler preview delete --name "$NAME" --skip-confirmation 2>&1)"
           STATUS=$?
           set -e
           echo "$OUTPUT"

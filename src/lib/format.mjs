@@ -1,25 +1,25 @@
-// Content formatting helpers shared by components, pages and llms.txt.
-
-import { html } from './html.mjs';
+// Content formatting helpers shared by components, pages and llms.txt. No framework code.
 
 export const isExternal = (url) => /^https?:\/\//.test(url);
 
 const LINK = /\[([^\]]+)\]\(((?:https:\/\/|mailto:)[^)\s]+)\)/g;
 
 /**
- * Inline markdown, links only: "Hi [there](https://x.y)". Anything else is escaped text,
- * and links with other schemes (javascript:, data:, …) are left as literal text.
- * `renderLink(text, href)` lets callers render links through the Link component.
+ * Split text with inline markdown links into segments:
+ *   "Hi [there](https://x.y)!" → [{ text: 'Hi ' }, { text: 'there', href: 'https://x.y' }, { text: '!' }]
+ * Only https: and mailto: links are recognised; anything else stays literal text.
+ * Components render the segments, so no HTML string is ever injected.
  */
-export function inlineMarkdown(text, renderLink = (label, href) => html`<a href="${href}">${label}</a>`) {
-  const parts = [];
+export function parseInlineLinks(text) {
+  const segments = [];
   let last = 0;
   for (const m of text.matchAll(LINK)) {
-    parts.push(text.slice(last, m.index), renderLink(m[1], m[2]));
+    if (m.index > last) segments.push({ text: text.slice(last, m.index) });
+    segments.push({ text: m[1], href: m[2] });
     last = m.index + m[0].length;
   }
-  parts.push(text.slice(last));
-  return html`${parts}`; // plain strings are escaped, links are already safe HTML
+  if (last < text.length) segments.push({ text: text.slice(last) });
+  return segments;
 }
 
 const yearOf = (d) => (d ? d.slice(0, 4) : null);

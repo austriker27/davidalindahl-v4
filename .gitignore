@@ -7,3 +7,6 @@ dist/
 # Licensed font files are never committed (see src/fonts/README.md)
 src/fonts/licensed/*
 !src/fonts/licensed/.gitkeep
+# Astro
+.astro/
+src/fonts/licensed/fonts.generated.css

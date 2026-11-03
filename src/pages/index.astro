@@ -1,0 +1,47 @@
+---
+// The single page. To add a section: create a component in src/components/, render it
+// below, and add a nav entry.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import RetroWindow from '../components/ui/RetroWindow.vue';
+import AsciiComputer from '../components/islands/AsciiComputer.vue';
+import IntroSection from '../components/IntroSection.vue';
+import ExperienceList from '../components/ExperienceList.vue';
+import LinkGrid from '../components/LinkGrid.vue';
+import asciiFont from '../fonts/ibm-plex-mono/ibm-plex-mono-latin-500-normal.woff2?url';
+import { site, experience } from '../lib/content.mjs';
+
+const nav = [
+  { href: '#about', label: 'About' },
+  { href: '#experience', label: 'Experience' },
+  { href: '#elsewhere', label: 'Elsewhere' },
+];
+
+// Shown over the (blank) canvas when JavaScript is off.
+const fallbackArt = String.raw`
+     .-------------------------.
+     |  .-------------------.  |
+     |  |                   |  |
+     |  |   > HELLO_        |  |
+     |  |                   |  |
+     |  '-------------------'  |
+     |                         |
+     |              ======     |
+     '-------------------------'
+       '---------------------'`;
+---
+
+<BaseLayout nav={nav}>
+  <figure class="pt-8 print:hidden" aria-label="Interactive ASCII computer">
+    <RetroWindow title="machine.txt">
+      <AsciiComputer client:idle messages={site.hero.screenMessages} fontUrl={asciiFont} />
+      <noscript>
+        <span class="absolute inset-0 grid place-content-center font-mono text-xs leading-tight whitespace-pre" aria-hidden="true">{fallbackArt}</span>
+      </noscript>
+    </RetroWindow>
+    {site.hero.hint && <figcaption class="mt-3 text-xs text-fg-muted">{site.hero.hint}</figcaption>}
+  </figure>
+
+  <IntroSection name={site.name} tagline={site.tagline} paragraphs={site.intro} />
+  <ExperienceList items={experience} />
+  <LinkGrid links={site.links} />
+</BaseLayout>

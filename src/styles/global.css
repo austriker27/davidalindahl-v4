@@ -1,0 +1,217 @@
+@import "tailwindcss";
+@import "../fonts/licensed/fonts.generated.css";
+
+/* ==========================================================================
+   Design tokens. The single source of truth for colour, type and layout.
+   Tailwind turns each one into utilities: --color-fg-muted → text-fg-muted,
+   --text-sm → text-sm, --container-page → max-w-page, and so on.
+
+   Tailwind's default palette, fonts and type scale are reset (`initial`), so only
+   these tokens exist as utilities. Spacing uses Tailwind's 4px scale (p-4 = 16px).
+
+   `static` makes Tailwind emit every variable even when no utility uses it: the ASCII
+   canvas reads --color-bg, --color-ascii-* and --font-mono at runtime.
+
+   Contrast on --color-bg: fg 14.2:1, fg-strong 16.7:1, fg-muted 6.4:1, border 3.7:1
+   (UI boundaries, WCAG 1.4.11). --color-line is decorative only.
+   ========================================================================== */
+@theme static {
+  --color-*: initial;
+  --color-bg: #0c100d;
+  --color-surface: #101712;
+  --color-line: #1f3a28;
+  --color-border: #3a7a50;
+  --color-fg: #74f7a0;
+  --color-fg-strong: #b8ffd0;
+  --color-fg-muted: #47a76a;
+  --color-ascii-0: #183d24;
+  --color-ascii-1: #2a6e41;
+  --color-ascii-2: #3fae65;
+  --color-ascii-3: #66f294;
+  --color-ascii-4: #d4ffe0;
+
+  --font-*: initial;
+  --font-ui: "MD Thermochrome", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+
+  --text-*: initial;
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-display: clamp(2.25rem, 7vw, 4.75rem);
+  --text-display--line-height: 1;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.6;
+  --tracking-tight: -0.02em;
+  --tracking-caps: 0.12em;
+
+  --breakpoint-*: initial;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 45rem;
+
+  --container-measure: 64ch;
+  --container-page: 67.5rem;
+
+  --shadow-*: initial;
+  --shadow-window: 6px 6px 0 var(--color-line);
+}
+
+/* Non-utility tokens. */
+:root {
+  --glow: 0 0 6px rgb(90 255 150 / 0.35);
+  --focus-ring: 2px dashed var(--color-fg);
+  --focus-offset: 3px;
+  --focus-offset-inset: -3px; /* full-bleed controls whose edges would clip the ring */
+  --menubar-height: 2.25rem;
+  --hero-height: clamp(21.25rem, 64vh, 38.75rem);
+  --gutter: --spacing(4);
+}
+
+@media (width >= 45rem) {
+  :root { --gutter: --spacing(8); }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glow: none;
+    --color-fg-muted: var(--color-fg);
+    --color-border: var(--color-fg);
+  }
+}
+
+/* ==========================================================================
+   Fonts. IBM Plex Mono (OFL) is committed; MD Thermochrome is imported above.
+   ========================================================================== */
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/ibm-plex-mono/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/ibm-plex-mono/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/ibm-plex-mono/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    background: var(--color-bg);
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--menubar-height) + --spacing(3));
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    text-shadow: var(--glow);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  /* CRT: scanlines + vignette over the whole viewport. Decorative only. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    background:
+      repeating-linear-gradient(to bottom, rgb(0 0 0 / 0) 0 2px, rgb(0 0 0 / 0.18) 2px 3px),
+      radial-gradient(ellipse at center, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.45) 100%);
+  }
+
+  :focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+  }
+
+  ::selection {
+    background: var(--color-fg);
+    color: var(--color-bg);
+    text-shadow: none;
+  }
+
+  @media (prefers-contrast: more), (forced-colors: active) {
+    body::after { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+
+  @media print {
+    :root {
+      --color-bg: #fff;
+      --color-fg: #000;
+      --color-fg-strong: #000;
+      --color-fg-muted: #333;
+      --color-border: #999;
+      --glow: none;
+    }
+    body::after { display: none; }
+  }
+}
+
+/* ==========================================================================
+   Custom utilities (shared patterns that aren't a single CSS property).
+   ========================================================================== */
+
+/* The shared "selected" interaction: inverts colours on hover and keyboard focus.
+   Descendants inherit the inverted colour even if they set their own text colour. */
+@utility invertible {
+  &:hover,
+  &:focus-visible {
+    background-color: var(--color-fg);
+    color: var(--color-bg);
+    text-shadow: none;
+  }
+  &:is(:hover, :focus-visible) :where(*) {
+    color: inherit;
+  }
+}
+
+/* Focus ring drawn inside the element, for full-bleed controls. */
+@utility focus-inset {
+  &:focus-visible {
+    outline-offset: var(--focus-offset-inset);
+  }
+}
+
+/* Retro title-bar stripes. */
+@utility window-stripes {
+  background: repeating-linear-gradient(to bottom, var(--color-border) 0 1px, transparent 1px 3px) content-box;
+}
+
+/* Blinking cursor. */
+@utility blink {
+  animation: blink 1.06s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
