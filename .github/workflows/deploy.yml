@@ -1,0 +1,144 @@
+# Continuous deployment to Cloudflare Workers (static assets).
+#
+#   push to main           → production: `wrangler deploy`
+#   push to any other branch → a Worker Preview named after the branch, with its own URL
+#   branch deleted         → that branch's Preview is deleted
+#
+# Setup (one time) is in docs/deployment.md. It needs two repository secrets:
+#   CLOUDFLARE_API_TOKEN   API token with the "Edit Cloudflare Workers" permissions
+#   CLOUDFLARE_ACCOUNT_ID  the Cloudflare account to deploy to
+# Until both exist, the deploy jobs are skipped with a warning instead of failing.
+#
+# Third-party actions are pinned to commit SHAs because these jobs handle the API token.
+# Wrangler comes from package.json (devDependency), so CI and local deploys match.
+
+name: Deploy
+
+on:
+  push:
+    branches: ['**']
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+# One run per branch at a time. Preview runs replace older in-flight runs for the same
+# branch; production runs and deletions always run to completion, in order.
+concurrency:
+  group: deploy-${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_name != 'main' }}
+
+jobs:
+  # Deploy jobs only run once both secrets exist, so an unconfigured repo shows a warning
+  # here instead of failing (or recording a fake deployment).
+  credentials:
+    name: Check Cloudflare credentials
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+    steps:
+      - id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets are not set; skipping deploy. See docs/deployment.md."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Deploy
+    needs: credentials
+    if: github.event_name != 'delete' && needs.credentials.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+      url: ${{ steps.production.outputs.deployment-url || steps.preview.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test (builds the site, then checks dist/)
+        run: npm test
+
+      - name: Deploy to production
+        id: production
+        if: github.ref_name == 'main'
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      # Preview names become part of a hostname: lowercase letters, digits and dashes.
+      - name: Preview name
+        id: name
+        if: github.ref_name != 'main'
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: echo "name=$(.github/scripts/preview-name.sh "$BRANCH")" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy preview
+        id: preview
+        if: github.ref_name != 'main'
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: preview --name ${{ steps.name.outputs.name }}
+
+      - name: Summary
+        env:
+          URL: ${{ steps.production.outputs.deployment-url || steps.preview.outputs.preview-url }}
+          KIND: ${{ github.ref_name == 'main' && 'Production' || 'Preview' }}
+        run: |
+          echo "### $KIND deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "${URL:-URL not reported by Wrangler; check the Cloudflare dashboard.}" >> "$GITHUB_STEP_SUMMARY"
+
+  delete-preview:
+    name: Delete preview
+    # `delete` events run the workflow file from the default branch.
+    needs: credentials
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch' && needs.credentials.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Delete the branch's preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          NAME="$(.github/scripts/preview-name.sh "$BRANCH")"
+          set +e
+          OUTPUT="$(npx wrangler preview delete --name "$NAME" --skip-confirmation 2>&1)"
+          STATUS=$?
+          set -e
+          echo "$OUTPUT"
+          # 10025 = "Preview not found": the branch never had a preview (or it's already gone).
+          if [ $STATUS -ne 0 ] && ! grep -q "10025" <<< "$OUTPUT"; then
+            exit $STATUS
+          fi
+          echo "Preview \"$NAME\" is gone." >> "$GITHUB_STEP_SUMMARY"

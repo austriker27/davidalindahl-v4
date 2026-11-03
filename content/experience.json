@@ -1,0 +1,54 @@
+{
+  "$schema": "./schema/experience.schema.json",
+  "experience": [
+    {
+      "company": "ShopHero",
+      "role": "Front End Developer",
+      "url": "https://shophero.com",
+      "start": "2022-11",
+      "end": "2023-08"
+    },
+    {
+      "company": "Zaengle Corp",
+      "role": "Front End / UI Developer",
+      "url": "https://zaengle.com",
+      "start": "2020-08",
+      "end": "2022-10"
+    },
+    {
+      "company": "Indigo Slate",
+      "role": "User Interface Developer",
+      "url": "https://indigoslate.com",
+      "start": "2018-09",
+      "end": "2020-05"
+    },
+    {
+      "company": "Lindahl Studios",
+      "role": "Freelance Front End Developer",
+      "url": "https://lindahlstudios.com",
+      "start": "2017-09",
+      "end": null
+    },
+    {
+      "company": "Capital One / ShareBuilder",
+      "role": "Anti-Money Laundering Investigator",
+      "url": "https://capitalone.com",
+      "start": "2013-05",
+      "end": "2017-09"
+    },
+    {
+      "company": "Rainier Watch",
+      "role": "Founder, Designer, Marketer, Developer",
+      "url": "https://rainierwatch.com",
+      "start": "2013-03",
+      "end": null
+    },
+    {
+      "company": "David Lindahl Photography",
+      "role": "Freelance Photographer",
+      "url": "https://davidlindahlphoto.com",
+      "start": "2010-03",
+      "end": null
+    }
+  ]
+}

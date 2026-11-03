@@ -1,0 +1,18 @@
+# Cloudflare static-asset headers (read by Workers static assets).
+#
+# Content-Security-Policy is split in two, and browsers enforce both:
+# - script-src / style-src / default-src etc. are in a <meta> tag that Astro generates
+#   with exact hashes of its inline scripts (security.csp in astro.config.mjs);
+# - the directives a <meta> CSP can't express (frame-ancestors) are sent here.
+/*
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none'
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+  X-Frame-Options: DENY
+
+# Astro content-hashes everything in /_astro/, so it can be cached forever.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

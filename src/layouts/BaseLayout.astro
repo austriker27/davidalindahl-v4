@@ -1,0 +1,66 @@
+---
+// Document shell shared by every page: <head> metadata, font preload, skip link, menu bar,
+// <main>, footer. Pages pass their sections as the default slot.
+import '../styles/global.css';
+import plexRegular from '../fonts/ibm-plex-mono/ibm-plex-mono-latin-400-normal.woff2?url';
+import MenuBar from '../components/MenuBar.vue';
+import SiteFooter from '../components/SiteFooter.vue';
+import LiveClock from '../components/islands/LiveClock.vue';
+import { site } from '../lib/content.mjs';
+import { isExternal } from '../lib/format.mjs';
+
+interface Props {
+  title?: string; // defaults to site.title
+  description?: string; // defaults to site.description
+  nav?: { href: string; label: string }[];
+  indexable?: boolean;
+}
+
+const { title, description = site.description, nav = [], indexable = true } = Astro.props;
+const pageTitle = title ? `${title} | ${site.name}` : site.title;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: site.name,
+  url: new URL('/', Astro.site).href,
+  description: site.description,
+  sameAs: site.links.filter((l) => isExternal(l.url)).map((l) => l.url),
+}).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    {indexable ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#0c100d" />
+    <meta name="color-scheme" content="dark" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={plexRegular} as="font" type="font/woff2" crossorigin />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="Plain-text summary for LLMs" />
+    <script is:inline type="application/ld+json" set:html={jsonLd} />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="absolute -top-24 left-(--gutter) z-200 bg-fg px-3 py-2 text-bg text-shadow-none focus:top-2 print:hidden"
+    >Skip to content</a>
+    <MenuBar name={site.name} nav={nav}>
+      <LiveClock client:idle />
+    </MenuBar>
+    <main id="main" class="mx-auto max-w-page px-(--gutter)">
+      <slot />
+    </main>
+    <SiteFooter name={site.name} text={site.footer} year={new Date().getFullYear()} />
+  </body>
+</html>
