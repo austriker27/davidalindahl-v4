@@ -5,11 +5,12 @@
 // pointer tilts the machine and drags a "lens" over it that magnifies, ripples and
 // glitches the characters underneath. Click cycles the words on its screen.
 //
-// Everything here is self-contained; tweak the constants below to restyle it.
+// This module is environment-agnostic: no DOM access. It draws into any 2D context
+// (a regular canvas or an OffscreenCanvas inside a Worker). See ascii-computer.js for
+// the host that wires it to the page, and ascii-worker.js for the worker entry.
 
 const RAMP = ' .,:;-=+*#%@'; // dark → bright
 const GLITCH = '01<>/\\|[]{}#$%&*+=~?!';
-const MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 // ---- 3x5 pixel font for the on-screen message --------------------------------
 const FONT = {
@@ -32,7 +33,7 @@ const FONT = {
   '(': '..#|.#.|.#.|.#.|..#', '█': '###|###|###|###|###',
 };
 
-function textBitmap(text) {
+export function textBitmap(text) {
   const chars = [...text.toUpperCase()].map((ch) => FONT[ch] ?? FONT['?']);
   const w = chars.length * 4 - 1;
   const bits = new Uint8Array(w * 5);
@@ -58,7 +59,7 @@ function sdRoundBox(px, py, pz, bx, by, bz, r) {
   return Math.sqrt(ox * ox + oy * oy + oz * oz) + (inside < 0 ? inside : 0) - r;
 }
 
-function sdf(x, y, z) {
+export function sdf(x, y, z) {
   // Main case + slightly narrower foot.
   let d = sdRoundBox(x, y - 0.06, z, 0.56, 0.76, 0.6, 0.07);
   d = Math.min(d, sdRoundBox(x, y + 0.74, z, 0.52, 0.06, 0.56, 0.03));
@@ -87,58 +88,50 @@ const hash = (a, b, c) => {
 };
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-export function mountAsciiComputer(canvas) {
-  const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) return;
+const FRAME_MS = 1000 / 45;
 
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const css = getComputedStyle(document.documentElement);
-  const color = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
-  const BG = color('--bg', '#0c100d');
-  const SHADES = [
-    color('--ascii-0', '#183d24'),
-    color('--ascii-1', '#2a6e41'),
-    color('--ascii-2', '#3fae65'),
-    color('--ascii-3', '#66f294'),
-    color('--ascii-4', '#d4ffe0'),
-  ];
-
-  let messages = ['HELLO'];
-  try {
-    const parsed = JSON.parse(canvas.dataset.messages || '[]');
-    if (Array.isArray(parsed) && parsed.length) messages = parsed.map(String);
-  } catch {}
+/**
+ * @param {CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D} ctx
+ * @param {{
+ *   theme: { bg: string, shades: string[], fontFamily: string },
+ *   messages: string[],
+ *   reduceMotion: boolean,
+ * }} options
+ */
+export function createRenderer(ctx, { theme, messages, reduceMotion }) {
+  const BG = theme.bg;
+  const SHADES = theme.shades;
+  const MONO = theme.fontFamily;
+  const bitmaps = messages.map((m) => [textBitmap(m + '█'), textBitmap(m + ' ')]);
   let msgIndex = 0;
-  let bitmaps = messages.map((m) => [textBitmap(m + '█'), textBitmap(m + ' ')]);
 
   // Layout state
   let W = 0, H = 0, cols = 0, rows = 0, cw = 0, ch = 0, fs = 10, scale = 1;
   let hit, mat, shade, nxA, nyA, nzA; // per-cell buffers (world-space normals)
   let rowBuf = [];
 
-  // Interaction state
+  // Interaction / animation state
   const pointer = { x: 0, y: 0, inside: false };
   let lens = 0; // 0..1, eases in/out
   let yaw = -0.5, pitch = 0.12;
   let burst = 0; // click glitch burst, 0..1
-  const start = performance.now();
+  let start = -1, lastStep = 0;
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = rect.width;
-    H = rect.height;
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
+  function resize(width, height, dpr) {
+    W = width;
+    H = height;
+    ctx.canvas.width = Math.max(1, Math.round(W * dpr));
+    ctx.canvas.height = Math.max(1, Math.round(H * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     fs = Math.max(7, Math.min(11, Math.round(Math.min(W / 90, H / 46))));
     ctx.font = `500 ${fs}px ${MONO}`;
     ctx.textBaseline = 'top';
+    if ('fontKerning' in ctx) ctx.fontKerning = 'none';
     cw = ctx.measureText('M').width;
     ch = Math.round(fs * 1.2);
-    cols = Math.floor(W / cw);
-    rows = Math.floor(H / ch);
+    cols = Math.max(1, Math.floor(W / cw));
+    rows = Math.max(1, Math.floor(H / ch));
     scale = Math.min(H / 1.95, W / 1.8);
 
     const n = cols * rows;
@@ -148,7 +141,7 @@ export function mountAsciiComputer(canvas) {
     nxA = new Float32Array(n);
     nyA = new Float32Array(n);
     nzA = new Float32Array(n);
-    rowBuf = SHADES.map(() => new Array(cols));
+    rowBuf = SHADES.map(() => new Array(cols).fill(' '));
   }
 
   // Raymarch every cell into the per-cell buffers.
@@ -157,7 +150,7 @@ export function mountAsciiComputer(canvas) {
     const sb = Math.sin(yaw), cb = Math.cos(yaw);
     // Ray direction (world 0,0,-1) in object space = R^T * d.
     const dx = ca * sb, dy = -sa, dz = -ca * cb;
-    // Key light and fill light, transformed into object space.
+    // Key light, transformed into object space.
     const lw = [-0.45, 0.9, 0.38];
     const ln = Math.hypot(...lw);
     const L = [lw[0] / ln, lw[1] / ln, lw[2] / ln];
@@ -169,8 +162,17 @@ export function mountAsciiComputer(canvas) {
     const lensR = Math.min(W, H) * 0.2;
     const bob = reduceMotion ? 0 : Math.sin(t * 1.3) * 0.015;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
+    // Only cells inside the projected bounding sphere (plus lens slack) can hit.
+    const cxPx = W / 2, cyPx = H / 2 + bob * scale;
+    const reach = BOUND_R * scale + (lens > 0.001 ? lensR * 0.5 : 0);
+    const r0 = Math.max(0, Math.floor((cyPx - reach) / ch));
+    const r1 = Math.min(rows - 1, Math.ceil((cyPx + reach) / ch));
+    const c0 = Math.max(0, Math.floor((cxPx - reach) / cw));
+    const c1 = Math.min(cols - 1, Math.ceil((cxPx + reach) / cw));
+    hit.fill(0);
+
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
         const i = r * cols + c;
         let px = (c + 0.5) * cw;
         let py = (r + 0.5) * ch;
@@ -196,7 +198,6 @@ export function mountAsciiComputer(canvas) {
         const oy = ca * wy + sa * wz;
         const oz = sb * wx - sa * cb * wy + ca * cb * wz;
 
-        hit[i] = 0;
         // Bounding sphere.
         const b = ox * dx + oy * dy + oz * dz;
         const cc = ox * ox + oy * oy + oz * oz - BOUND_R * BOUND_R;
@@ -243,7 +244,7 @@ export function mountAsciiComputer(canvas) {
     }
   }
 
-  // Brightness of the CRT at object-space (x, y). Returns -1..1 where >1 means "lit pixel".
+  // Brightness of the CRT at object-space (x, y). Values > 1 mean "lit text pixel".
   function screenPixel(x, y, row, t) {
     const blinkOn = reduceMotion || Math.floor(t / 0.53) % 2 === 0;
     const bm = bitmaps[msgIndex][blinkOn ? 0 : 1];
@@ -262,8 +263,7 @@ export function mountAsciiComputer(canvas) {
 
   function edgeGlyph(nx, ny) {
     const a = Math.atan2(ny, nx); // direction the surface faces on screen
-    const o = ((a + Math.PI) / Math.PI) * 4; // 0..8 octants
-    const k = Math.round(o) % 4;
+    const k = Math.round(((a + Math.PI) / Math.PI) * 4) % 4; // octant
     return k === 0 ? '|' : k === 1 ? '\\' : k === 2 ? '-' : '/';
   }
 
@@ -274,9 +274,10 @@ export function mountAsciiComputer(canvas) {
     const reveal = reduceMotion ? 1 : clamp01((t - 0.15) / 1.1);
     const lensR = Math.min(W, H) * 0.2;
     const tick = Math.floor(t * 14);
+    const used = new Uint8Array(SHADES.length);
 
     for (let r = 0; r < rows; r++) {
-      for (let b = 0; b < SHADES.length; b++) rowBuf[b].fill(' ');
+      used.fill(0);
 
       for (let c = 0; c < cols; c++) {
         const i = r * cols + c;
@@ -341,39 +342,36 @@ export function mountAsciiComputer(canvas) {
           bucket = 1;
         }
 
-        if (chr !== ' ') rowBuf[bucket][c] = chr;
+        if (chr !== ' ') {
+          rowBuf[bucket][c] = chr;
+          used[bucket] = 1;
+        }
       }
 
+      // One fillText per colour per row. In a monospace font every glyph advances by the
+      // same width, so characters land on the grid exactly as per-character draws would.
       const y = r * ch;
       for (let b = 0; b < SHADES.length; b++) {
-        const line = rowBuf[b].join('');
-        if (line.trim()) {
-          ctx.fillStyle = SHADES[b];
-          // Draw per-character to keep the grid exact regardless of font metrics.
-          for (let c = 0; c < cols; c++) {
-            const chr = rowBuf[b][c];
-            if (chr !== ' ') ctx.fillText(chr, c * cw, y);
-          }
-        }
+        if (!used[b]) continue;
+        ctx.fillStyle = SHADES[b];
+        ctx.fillText(rowBuf[b].join(''), 0, y);
+        rowBuf[b].fill(' ');
       }
     }
   }
 
-  // ---- Loop ------------------------------------------------------------------
-  let raf = 0, last = 0, running = false, visible = true;
-
-  function frame(now) {
-    raf = 0;
+  /** Advance and draw one frame. Returns true while more frames are wanted. */
+  function step(now) {
+    if (start < 0) start = now;
     const t = (now - start) / 1000;
-    const dt = Math.min(0.1, (now - (last || now)) / 1000);
-    if (now - last < 1000 / 45 && last) { schedule(); return; }
-    last = now;
+    const dt = Math.min(0.1, (now - (lastStep || now)) / 1000);
+    lastStep = now;
 
     // Target orientation: follow the pointer, otherwise idle sway.
     let ty, tp;
     if (pointer.inside) {
-      ty = -0.45 + ((pointer.x / W) - 0.5) * 1.5;
-      tp = 0.1 + ((pointer.y / H) - 0.5) * 0.55;
+      ty = -0.45 + (pointer.x / W - 0.5) * 1.5;
+      tp = 0.1 + (pointer.y / H - 0.5) * 0.55;
     } else if (reduceMotion) {
       ty = -0.5; tp = 0.12;
     } else {
@@ -389,36 +387,58 @@ export function mountAsciiComputer(canvas) {
     trace(t);
     draw(t);
 
-    const settled = Math.abs(ty - yaw) < 1e-3 && Math.abs(tp - pitch) < 1e-3 && burst === 0;
-    if (!reduceMotion || !settled) schedule();
+    // With reduced motion, stop once settled; pointer/click events restart the loop.
+    return !reduceMotion || burst > 0;
   }
 
-  function schedule() {
-    if (!raf && visible && !document.hidden) raf = requestAnimationFrame(frame);
-  }
-
-  // ---- Events ----------------------------------------------------------------
-  const setPointer = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = e.clientX - rect.left;
-    pointer.y = e.clientY - rect.top;
-    pointer.inside = pointer.x >= 0 && pointer.y >= 0 && pointer.x <= rect.width && pointer.y <= rect.height;
-    schedule();
+  return {
+    resize,
+    step,
+    setPointer(x, y, inside) {
+      pointer.x = x;
+      pointer.y = y;
+      pointer.inside = inside;
+    },
+    setMessage(index) {
+      msgIndex = ((index % bitmaps.length) + bitmaps.length) % bitmaps.length;
+      if (!reduceMotion) burst = 1;
+    },
   };
-  canvas.addEventListener('pointermove', setPointer);
-  canvas.addEventListener('pointerdown', setPointer);
-  canvas.addEventListener('pointerleave', () => { pointer.inside = false; schedule(); });
-  canvas.addEventListener('pointercancel', () => { pointer.inside = false; schedule(); });
-  canvas.addEventListener('click', () => {
-    msgIndex = (msgIndex + 1) % messages.length;
-    if (!reduceMotion) burst = 1;
-    schedule();
-  });
+}
 
-  new ResizeObserver(() => { resize(); last = 0; schedule(); }).observe(canvas);
-  new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; schedule(); }).observe(canvas);
-  document.addEventListener('visibilitychange', schedule);
+/**
+ * Frame scheduler shared by the worker and inline hosts. Caps at ~45fps and backs off
+ * further on slow devices (never spends more than ~2/3 of the time rendering).
+ *
+ * @param {{ step(now: number): boolean }} renderer
+ * @param {(cb: (now: number) => void) => void} requestFrame
+ */
+export function createLoop(renderer, requestFrame) {
+  let pending = false, active = true, last = 0, cost = 0;
 
-  resize();
-  schedule();
+  function tick(now) {
+    pending = false;
+    if (!active) return;
+    if (last && now - last < Math.max(FRAME_MS, cost * 1.5)) return request();
+    const t0 = performance.now();
+    const more = renderer.step(now);
+    cost = cost * 0.9 + (performance.now() - t0) * 0.1;
+    last = now;
+    if (more) request();
+  }
+
+  function request() {
+    if (!pending && active) {
+      pending = true;
+      requestFrame(tick);
+    }
+  }
+
+  return {
+    request,
+    setActive(value) {
+      active = value;
+      if (value) request();
+    },
+  };
 }

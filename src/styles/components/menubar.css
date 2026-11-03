@@ -1,0 +1,48 @@
+.menubar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-menubar);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  height: var(--menubar-height);
+  padding: 0 var(--gutter);
+  background: var(--color-bg);
+  border-bottom: var(--border-line);
+  font-size: var(--text-sm);
+}
+
+.menubar__brand {
+  margin-right: auto; /* pushes nav + clock right, with or without a nav */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  font-weight: var(--weight-bold);
+}
+.menubar__glyph { color: var(--color-text-strong); }
+
+.menubar__nav {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.menubar__link {
+  padding: var(--space-1) var(--space-2);
+  text-decoration: none;
+}
+
+.menubar__clock {
+  min-width: 5.5em;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 40rem) {
+  .menubar { gap: var(--space-3); }
+  .menubar__nav { gap: 0; }
+  .menubar__link { padding: var(--space-1) var(--space-1); }
+  .menubar__clock { display: none; }
+}

@@ -7,7 +7,7 @@
   "tagline": "Front End/UI Developer | Designer | E-commerce Operator | Entrepreneur | Outdoor Adventurer | Photographer",
   "hero": {
     "screenMessages": ["HELLO", "HOWDY", "PNW"],
-    "hint": "move your mouse over the machine // click to change the screen"
+    "hint": "hover or drag across the machine // click, tap or press enter to change its screen"
   },
   "intro": [
     "Howdy! My name is David. I'm a front end / UI developer and designer, and I run [Rainier Watch](https://rainierwatch.com), the e-commerce side of a Twitter account I started in 2013 to report when The Mountain was out.",
